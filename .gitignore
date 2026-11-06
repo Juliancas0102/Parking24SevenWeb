@@ -1,4 +1,11 @@
-target/ 
+target/
 *.class
 *.log
 db.properties
+/target_respaldo/
+# Nunca subir credenciales SMTP locales:
+src/main/resources/smtp.properties
+/target_respaldo_1819/
+
+# Respaldos de compilacion
+/target_anterior_*/

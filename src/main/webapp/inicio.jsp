@@ -1,7 +1,65 @@
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+
+<%@page contentType="text/html" pageEncoding="UTF-8" session="false"%>
+<%@page import="jakarta.servlet.DispatcherType"%>
+<%@page import="jakarta.servlet.http.HttpSession"%>
+
+<%!
+    private String escaparHtml(String texto) {
+
+        if (texto == null) {
+            return "";
+        }
+
+        return texto
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&#39;");
+    }
+%>
+
+<%
+    // COMPROBAR SI EXISTE UNA SESION AUTENTICADA
+    HttpSession sesionActual =
+            request.getSession(false);
+
+    if (sesionActual == null
+            || sesionActual.getAttribute("usuario") == null) {
+
+        response.sendRedirect(
+                request.getContextPath() + "/login"
+        );
+
+        return;
+    }
+
+    // EVITAR EL ACCESO DIRECTO AL ARCHIVO JSP
+    if (request.getDispatcherType()
+            != DispatcherType.FORWARD) {
+
+        response.sendRedirect(
+                request.getContextPath() + "/inicio"
+        );
+
+        return;
+    }
+
+    Object usuarioSesion =
+            sesionActual.getAttribute("usuario");
+
+    String nombreUsuario =
+            escaparHtml(usuarioSesion.toString());
+
+    boolean esAdmin =
+            "ADMINISTRADOR".equalsIgnoreCase(
+                    String.valueOf(sesionActual.getAttribute("rol"))
+            );
+%>
 
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>Inicio - Parking 24 Seven</title>
@@ -15,21 +73,14 @@
 
     <p>
         Sesión iniciada como:
-        <strong>${sessionScope.usuario}</strong>
+        <strong><%= nombreUsuario %></strong>
     </p>
 
     <p>
         Has ingresado correctamente al sistema.
     </p>
 
-    <%
-        Object usuarioSesion =
-                session.getAttribute("usuario");
-
-        if (usuarioSesion != null
-                && "admin".equalsIgnoreCase(
-                        usuarioSesion.toString())) {
-    %>
+    <% if (esAdmin) { %>
 
         <p>
             <a href="${pageContext.request.contextPath}/usuarios">
@@ -37,9 +88,7 @@
             </a>
         </p>
 
-    <%
-        }
-    %>
+    <% } %>
 
     <p>
         <a href="${pageContext.request.contextPath}/logout">

@@ -1,121 +1,48 @@
 package com.parking24seven.web;
 
 import com.parking24seven.UsuarioDAO;
-import java.io.IOException;
-
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
 
 @WebServlet(name = "LoginServlet", urlPatterns = {"/login"})
 public class LoginServlet extends HttpServlet {
-
-    @Override
-    protected void doGet(HttpServletRequest request,
-                         HttpServletResponse response)
+    @Override protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-
-        HttpSession sesion =
-                request.getSession(false);
-
-        if (sesion != null
-                && sesion.getAttribute("usuario") != null) {
-
-            String usuario =
-                    String.valueOf(
-                            sesion.getAttribute("usuario")
-                    );
-
-            redirigirSegunUsuario(
-                    request,
-                    response,
-                    usuario
-            );
-
+        HttpSession sesion = req.getSession(false);
+        if (sesion != null && sesion.getAttribute("usuarioId") != null) {
+            resp.sendRedirect(req.getContextPath() + "/inicio");
             return;
         }
-
-        request.getRequestDispatcher(
-                "/login.jsp"
-        ).forward(
-                request,
-                response
-        );
+        req.getRequestDispatcher("/login.jsp").forward(req, resp);
     }
 
-    @Override
-    protected void doPost(HttpServletRequest request,
-                          HttpServletResponse response)
+    @Override protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
-
-        request.setCharacterEncoding("UTF-8");
-
-        String usuario =
-                request.getParameter("usuario");
-
-        String contrasena =
-                request.getParameter("contrasena");
-
-        boolean valido =
-                UsuarioDAO.validarUsuario(
-                        usuario,
-                        contrasena
-                );
-
-        if (valido) {
-
-            HttpSession sesion =
-                    request.getSession(true);
-
-            sesion.setAttribute(
-                    "usuario",
-                    usuario
-            );
-
-            redirigirSegunUsuario(
-                    request,
-                    response,
-                    usuario
-            );
-
-        } else {
-
-            request.setAttribute(
-                    "mensaje",
-                    "Usuario o contraseña incorrectos."
-            );
-
-            request.getRequestDispatcher(
-                    "/login.jsp"
-            ).forward(
-                    request,
-                    response
-            );
+        req.setCharacterEncoding("UTF-8");
+        String nombre = req.getParameter("usuario");
+        String password = req.getParameter("contrasena");
+        if (UsuarioDAO.validarUsuario(nombre, password)) {
+            UsuarioDAO.EstadoSesion estado = UsuarioDAO.obtenerEstadoSesion(nombre);
+            if (estado != null && estado.activo() && estado.activado()) {
+                HttpSession anterior = req.getSession(false);
+                if (anterior != null) anterior.invalidate(); // evita fijacion de sesion
+                HttpSession sesion = req.getSession(true);
+                sesion.setAttribute("usuario", estado.nombre());
+                sesion.setAttribute("usuarioId", estado.id());
+                sesion.setAttribute("rol", estado.rol());
+                sesion.setAttribute("versionSesion", estado.version());
+                RegistroSesiones.registrar(estado.id(), sesion);
+                resp.sendRedirect(req.getContextPath() + ("ADMINISTRADOR".equalsIgnoreCase(estado.rol())
+                        ? "/usuarios" : "/inicio"));
+                return;
+            }
         }
-    }
-
-    private void redirigirSegunUsuario(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            String usuario)
-            throws IOException {
-
-        if ("admin".equalsIgnoreCase(usuario)) {
-
-            response.sendRedirect(
-                    request.getContextPath()
-                    + "/usuarios"
-            );
-
-        } else {
-
-            response.sendRedirect(
-                    request.getContextPath()
-                    + "/inicio"
-            );
-        }
+        req.setAttribute("mensaje", "Credenciales incorrectas o cuenta pendiente de activacion.");
+        req.getRequestDispatcher("/login.jsp").forward(req, resp);
     }
 }

@@ -9,3 +9,4 @@ src/main/resources/smtp.properties
 
 # Respaldos de compilacion
 /target_anterior_*/
+/target_respaldo_temporal/
